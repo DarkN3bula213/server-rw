@@ -1,0 +1,9 @@
+#!/usr/bin/env sh
+
+# This is a more reliable way to get the project root
+PROJECT_ROOT="$(git rev-parse --show-toplevel)"
+
+# Run lint and test from the project root
+cd "$PROJECT_ROOT"
+npm run lint
+npm run test 
