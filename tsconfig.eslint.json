@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.json"
+  //   "include": [
+  //     "src/**/*.ts",
+  //     "tests/**/*.ts",
+  //     "lib/**/*.ts",
+  //     "*.ts",
+  //     "*.mjs",
+  //     ".eslintrc.js",
+  //     "commitlint.config.ts",
+  //     "vitest.config.ts"
+  //   ]
+}

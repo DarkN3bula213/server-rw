@@ -1,10 +1,11 @@
-import { Request, Response } from "express";
+import { Request, Response } from 'express';
 
 export class HealthController {
-  public check = (_req: Request, res: Response): void => {
+  public check = (req: Request, res: Response): void => {
+    const key = req.apiKey;
     res.status(200).json({
-      status: "success",
-      message: "Server is healthy"
+      status: 'success',
+      message: `Server is healthy, key: ${key}`,
     });
   };
 }

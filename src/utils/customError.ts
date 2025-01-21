@@ -4,6 +4,6 @@ export class CustomError extends Error {
     message: string
   ) {
     super(message);
-    this.name = "CustomError";
+    this.name = 'CustomError';
   }
 }

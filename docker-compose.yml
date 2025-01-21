@@ -1,0 +1,207 @@
+services:
+  database:
+    image: mongo:latest
+    hostname: database
+    container_name: localmongo1
+    entrypoint: ['/usr/bin/mongod', '--bind_ip_all', '--replSet', 'rs0']
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongodb_data:/data/db
+    logging:
+      driver: 'json-file'
+      options:
+        max-size: '10m'
+        max-file: '3'
+    healthcheck:
+      test: mongosh --eval "try { rs.status().ok } catch { exit(1) }"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    networks:
+      - app-network
+
+  mongosetup:
+    image: mongo:latest
+    depends_on:
+      - database
+    volumes:
+      - ./mongo-initdb.d:/docker-entrypoint-initdb.d
+    restart: 'no'
+    networks:
+      - app-network
+    logging:
+      driver: 'json-file'
+      options:
+        max-size: '10m'
+        max-file: '3'
+
+  mongorestore:
+    image: mongo:latest
+    depends_on:
+      - mongosetup
+    volumes:
+      - ./backup-2025-01-20.gz:/backup/backup.gz
+    command: >
+      bash -c "
+        echo 'Waiting for MongoDB replica set to be ready...' &&
+        until mongosh --host database --eval 'rs.status().ok && rs.status().members.find(m => m.state === 1)' > /dev/null 2>&1; do
+          echo 'Waiting for primary node to be ready...'
+          sleep 5
+        done &&
+        echo 'MongoDB replica set is ready, starting restore...' &&
+        mongorestore --uri mongodb://database:27017/?replicaSet=rs0 --gzip --archive=/backup/backup.gz --drop
+      "
+    restart: 'no'
+    networks:
+      - app-network
+    logging:
+      driver: 'json-file'
+      options:
+        max-size: '10m'
+        max-file: '3'
+
+  server:
+    build: .
+    ports:
+      - '3000:3000'
+    networks:
+      - app-network
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      MONGODB_URI: mongodb://database:27017/?replicaSet=rs0
+    depends_on:
+      - database
+      - mongosetup
+      - mongorestore
+    logging:
+      driver: 'json-file'
+      options:
+        max-size: '10m'
+        max-file: '3'
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+
+volumes:
+  mongodb_data:
+networks:
+  app-network:
+    driver: bridge
+# services:
+#   database:
+#     image: mongo:latest
+#     hostname: database
+#     container_name: localmongo1
+#     command: mongod --bind_ip_all --replSet rs0
+#     environment:
+#       MONGODB_INITDB_ROOT_USERNAME: 'admin'
+#       MONGODB_INITDB_ROOT_PASSWORD: 'admin'
+#     ports:
+#       - '27017:27017'
+#     volumes:
+#       - mongodb_data:/data/db
+#     logging:
+#       driver: 'json-file'
+#       options:
+#         max-size: '10m'
+#         max-file: '3'
+#     healthcheck:
+#       test: mongosh --eval "try { rs.status().ok } catch { exit(1) }"
+#       interval: 10s
+#       timeout: 5s
+#       retries: 5
+#       start_period: 40s
+#     extra_hosts:
+#       - 'host.docker.internal:host-gateway'
+#     networks:
+#       - app-network
+
+#   mongosetup:
+#     image: mongo:latest
+#     depends_on:
+#       database:
+#         condition: service_started
+#     environment:
+#       MONGODB_INITDB_ROOT_USERNAME: 'admin'
+#       MONGODB_INITDB_ROOT_PASSWORD: 'admin'
+
+#     volumes:
+#       - ./mongo-initdb.d:/docker-entrypoint-initdb.d
+#     restart: 'no'
+#     networks:
+#       - app-network
+#     logging:
+#       driver: 'json-file'
+#       options:
+#         max-size: '10m'
+#         max-file: '3'
+
+#   mongorestore:
+#     image: mongo:latest
+#     depends_on:
+#       mongosetup:
+#         condition: service_completed_successfully
+#     environment:
+#       MONGODB_INITDB_ROOT_USERNAME: 'admin'
+#       MONGODB_INITDB_ROOT_PASSWORD: 'admin'
+#     volumes:
+#       - ./backup-2025-01-20.gz:/backup/backup.gz
+#     command: >
+#       bash -c "
+#         echo 'Waiting for MongoDB replica set to be ready...' &&
+#         until mongosh --host database --username admin --password admin --authenticationDatabase admin --eval 'db.adminCommand({ping:1})' > /dev/null 2>&1; do
+#           echo 'Waiting for MongoDB to be ready and authenticated...'
+#           sleep 5
+#         done &&
+#         echo 'MongoDB replica set is ready, starting restore...' &&
+#         mongorestore --uri 'mongodb://admin:admin@database:27017/?replicaSet=rs0&authSource=admin' --gzip --archive=/backup/backup.gz --drop
+#       "
+#     restart: 'no'
+#     networks:
+#       - app-network
+#     logging:
+#       driver: 'json-file'
+#       options:
+#         max-size: '10m'
+#         max-file: '3'
+
+#   server:
+#     build: .
+#     ports:
+#       - '3000:3000'
+#     networks:
+#       - app-network
+#     environment:
+#       NODE_ENV: development
+#       PORT: 3000
+#       MONGODB_URI: mongodb://admin:admin@database:27017/?replicaSet=rs0&authSource=admin
+#     depends_on:
+#       mongorestore:
+#         condition: service_completed_successfully
+#     command: >
+#       sh -c "
+#         echo 'Waiting for MongoDB to be ready...' &&
+#         until mongosh --host database --username admin --password admin --authenticationDatabase admin --eval 'db.adminCommand({ping:1})' > /dev/null 2>&1; do
+#           echo 'Waiting for MongoDB connection...'
+#           sleep 2
+#         done &&
+#         echo 'MongoDB is ready!' &&
+#         node server.js
+#       "
+#     logging:
+#       driver: 'json-file'
+#       options:
+#         max-size: '10m'
+#         max-file: '3'
+#     extra_hosts:
+#       - 'host.docker.internal:host-gateway'
+
+# volumes:
+#   mongodb_data:
+# networks:
+#   app-network:
+#     driver: bridge

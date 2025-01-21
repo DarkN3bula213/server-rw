@@ -1,6 +1,9 @@
 {
+  "ts-node": {
+    "require": ["tsconfig-paths/register"]
+  },
   "compilerOptions": {
-    "target": "es2018",
+    "target": "ESNext",
     "module": "commonjs",
     "lib": ["es2018", "esnext.asynciterable"],
     "skipLibCheck": true,
@@ -14,7 +17,7 @@
     "noImplicitThis": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "noImplicitReturns": true,
+    "noImplicitReturns": false,
     "noFallthroughCasesInSwitch": true,
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
@@ -22,11 +25,13 @@
     "experimentalDecorators": true,
     "resolveJsonModule": true,
     "baseUrl": ".",
+    "types": ["node", "express"],
+    "typeRoots": ["./node_modules/@types", "./src/types"],
     "paths": {
-      "@/*": ["src/*"],
-  
+      // "*": ["src/types/*"],
+      "@/*": ["src/*"]
     }
   },
   "exclude": ["node_modules", "dist"],
-  "include": ["./src/**/*.ts"]
+  "include": ["./src/**/*.ts", "./tests/**/*.ts", "*.ts", "*.mjs", "*.d.ts"]
 }
